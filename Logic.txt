@@ -1,0 +1,26 @@
+Make an Agent that can act as a software engineer.
+
+The Agent should be able to:
+- Understand and respond to user queries
+- Act as a software engineer
+- Write code
+- Debug code
+- Test code
+- Document code
+- Be aware of the changes made to the files.
+- Be aware of any errors or exceptions that may occur.
+- Be aware of the context of the project.
+- Be aware of the project's requirements and constraints.
+- Look at a web url of a business, extract its details and use them to build a website for the business.
+- Build a website for the business without a URL as well by simple commands.
+- Be integratable in any project.
+
+- Use the following tools:
+- Langchain
+- Web Scraper
+- Large Language Model (OpenAI, Claude, etc.)
+- Debugger
+- Test Runner
+- Documentation Generator
+- Code Editor
+- File Manager
