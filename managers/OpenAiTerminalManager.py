@@ -9,7 +9,7 @@ import time
 from queue import Queue
 
 class OPENAITerminalManager:
-    def __init__(self):
+    def __init__(self, working_dir="."):
         self.master_fd = None
         self.child_pid = None
         self.command_history = []
@@ -24,6 +24,7 @@ class OPENAITerminalManager:
         self.process = None
         self.command_completed = threading.Event()
         self.output_buffer = ""
+        self.working_dir = os.path.abspath(working_dir)
     
     def set_llm(self, llm):
         self.llm = llm
@@ -44,6 +45,7 @@ class OPENAITerminalManager:
     def get_terminal_cwd(self):
         """Get current working directory of the opened terminal"""
         if not self._is_terminal_alive():
+            print("Terminal is not running, returning current working directory.")
             return os.getcwd()  # Fallback if terminal not running
             
         # Write pwd command to terminal
@@ -59,13 +61,12 @@ class OPENAITerminalManager:
                     with open(output_file, 'r') as f:
                         content = f.read()
                         if marker in content:
-                            # Extract pwd output (everything before marker)
                             lines = content.splitlines()
-                            for line in lines:
-                                if line and not line.startswith('__'):
-                                    # Clear output file
-                                    open(output_file, 'w').close()
-                                    return line.strip()
+                            for i, line in enumerate(lines):
+                                if marker in line and i > 0:
+                                    pwd_line = lines[i - 1].strip()
+                                    return pwd_line
+
             except Exception as e:
                 print(f"Error reading terminal output: {e}")
                 pass
@@ -117,18 +118,24 @@ class OPENAITerminalManager:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self.script_path = os.path.join(tempfile.gettempdir(), f"agent_terminal_{timestamp}")
         
-        # Get the current working directory
-        current_dir = os.getcwd()
+        # Get and validate the working directory
         
+        print(f"Current working directory: {self.working_dir}")
+        
+        # # Create directory if it doesn't exist
+        # if not os.path.exists(current_dir):
+        #     os.makedirs(current_dir)
+        #     print(f"Created directory: {current_dir}")
+    
         if self.os_type == "darwin":  # macOS
-            print(f"Detected macOS, using Terminal.app in directory: {current_dir}")
+            print(f"Detected macOS, using Terminal.app in directory: {self.working_dir}")
             self.script_path += ".command"
             self._create_terminal_script()
             
             # Create an AppleScript that opens Terminal in the correct directory
             apple_script = f'''
             tell application "Terminal"
-                do script "cd '{current_dir}' && '{self.script_path}'"
+                do script "cd '{self.working_dir}' && chmod +x '{self.script_path}' && '{self.script_path}'"
                 activate
             end tell
             '''
@@ -141,7 +148,7 @@ class OPENAITerminalManager:
             terminals = ["gnome-terminal", "xterm", "konsole"]
             for term in terminals:
                 try:
-                    self.process = subprocess.Popen([term, "--working-directory", current_dir, 
+                    self.process = subprocess.Popen([term, "--working-directory", self.working_dir, 
                                                   "--", "bash", self.script_path])
                     break
                 except FileNotFoundError:
@@ -151,7 +158,7 @@ class OPENAITerminalManager:
             self.script_path += ".bat"
             self._create_terminal_script(for_windows=True)
             self.process = subprocess.Popen(
-                ["start", "cmd", "/k", f"cd /d {current_dir} && {self.script_path}"],
+                ["start", "cmd", "/k", f"cd /d {self.working_dir} && {self.script_path}"],
                 shell=True,
                 creationflags=subprocess.CREATE_NEW_CONSOLE
             )
@@ -183,10 +190,21 @@ goto loop
 set -e
 export HISTFILE="{self.script_path}.history"
 
-# Initialize files
+# Initialize files and set initial working directory
 touch "{self.script_path}.input"
 touch "{self.script_path}.cwd"
-pwd > "{self.script_path}.cwd"
+
+# Ensure we start in the correct working directory
+cd "{self.working_dir}"
+echo "{self.working_dir}" > "{self.script_path}.cwd"
+
+# Function to ensure we're in the correct directory
+ensure_directory() {{
+    current_dir="$(cat "{self.script_path}.cwd")"
+    if [ "$PWD" != "$current_dir" ]; then
+        cd "$current_dir"
+    fi
+}}
 
 while true; do
     if [ -s "{self.script_path}.input" ]; then
@@ -194,12 +212,10 @@ while true; do
         if [ ! -z "$command" ]; then
             echo "Executing: $command"
             
-            # Source the last working directory
-            if [ -f "{self.script_path}.cwd" ]; then
-                cd "$(cat "{self.script_path}.cwd")"
-            fi
+            # Ensure correct directory before each command
+            ensure_directory
             
-            # Execute command and capture status in a more reliable way
+            # Execute command and capture status
             {{ 
                 eval "$command"
                 cmd_status=$?
@@ -209,6 +225,7 @@ while true; do
                 else
                     echo "__FAILED__" >> "{output_file}"
                 fi
+                # Save new working directory if changed
                 pwd > "{self.script_path}.cwd"
                 echo "__DONE_MARKER__" >> "{output_file}"
             }} 2>&1 | tee -a "{output_file}"
@@ -301,7 +318,25 @@ done
 
 
     def write_to_file(self, filename, content):
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, 'w') as f:
-            f.write(content)
-        self._log_to_history({"file written": filename})
+        """Write content to a file with proper error handling"""
+        try:
+            # Convert relative path to absolute if needed
+            if not os.path.isabs(filename):
+                filename = os.path.join(self.working_dir, filename)
+                
+            # Create directory structure if it doesn't exist
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            
+            # Write content to file
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(content)
+                
+            print(f"Successfully wrote to: {filename}")
+            self._log_to_history({"file_written": filename})
+            return True
+            
+        except Exception as e:
+            error_msg = f"Error writing to {filename}: {str(e)}"
+            print(error_msg)
+            self._log_to_history({"file_error": error_msg})
+            return False

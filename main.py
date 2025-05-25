@@ -2,15 +2,17 @@
 
 import sys
 import time
+import os
 import traceback
+import argparse
 from agents.openAiLLM import OpenAIClient
 from managers.OpenAiTerminalManager import OPENAITerminalManager
 
-def main():
+def main(working_dir: str):
     try:
         # Initialize agent and terminal manager
         client = OpenAIClient()
-        terminal_manager = OPENAITerminalManager()
+        terminal_manager = OPENAITerminalManager(working_dir=working_dir)
 
         print("Initializing Agent and Terminal Manager...")
 
@@ -58,5 +60,27 @@ def main():
     return 0
 
 if __name__ == "__main__":
-    sys.exit(main())
+    parser = argparse.ArgumentParser(description='AI Agent for Code Generation and Management')
+    parser.add_argument('--path', '-p', 
+                       type=str,
+                       help='Starting directory path for the agent',
+                       default=os.getcwd())
+    
+    args = parser.parse_args()
+    # Fix: Only expand and normalize path once
+    working_dir = os.path.abspath(os.path.expanduser(args.path))
+
+    # Validate directory
+    if not os.path.exists(working_dir):
+        print(f"[Error]: The specified path '{working_dir}' does not exist.")
+        sys.exit(1)
+    if not os.path.isdir(working_dir):
+        print(f"[Error]: The specified path '{working_dir}' is not a directory.")
+        sys.exit(1)
+    if not os.access(working_dir, os.W_OK):
+        print(f"[Error]: The specified path '{working_dir}' is not writable.")
+        sys.exit(1)
+
+    print(f"Starting agent with working directory: {working_dir}")
+    sys.exit(main(working_dir=working_dir))
 
