@@ -47,21 +47,23 @@ class OpenAIClient:
     def debug_with_gpt(self, user_prompt):
         # This function is used to debug the code with gpt.
         # It will take the user prompt and return the response from gpt.
-        self.debugMessages.append({"role": "user", "content": user_prompt})
+        # self.debugMessages.append({"role": "user", "content": user_prompt})
+        self.messages.append({"role": "user", "content": user_prompt})
         self.userPrompt = user_prompt
         print(f"Debugging with GPT: {user_prompt}")
         # Ask gpt to generate a response based on the debug messages
-        debugResponse = self.ask_gpt(self.debugMessages)
-        self.debugMessages = self.trim_history(self.debugMessages)
-        try:
-            decodedResponse = json.loads(debugResponse)
-            self.debugMessages.append({"role": "assistant", "content": json.dumps(decodedResponse)})
-            ans = self.takeAction(decodedResponse)
-        except json.JSONDecodeError as e:
-            print(f"Error decoding JSON: {e}")
-            # If the output is not a valid JSON, send it back to gpt for sending a better response
-            self.debug_with_gpt(f"Error: {e} - {debugResponse}")
-        return ans
+        debugResponse = self.generate_response(self.userPrompt)
+        print(f"Debug response from GPT: {debugResponse}")
+        # self.messages = self.trim_history(self.messages)
+        # try:
+        #     decodedResponse = json.loads(debugResponse)
+        #     self.debugMessages.append({"role": "assistant", "content": json.dumps(decodedResponse)})
+        #     ans = self.takeAction(decodedResponse)
+        # except json.JSONDecodeError as e:
+        #     print(f"Error decoding JSON: {e}")
+        #     # If the output is not a valid JSON, send it back to gpt for sending a better response
+        #     self.debug_with_gpt(f"Error: {e} - {debugResponse}")
+        # return ans
     
 
     def ask_gpt(self, messages, temperature = 0):
@@ -192,21 +194,21 @@ Make sure to keep the codes clean, modular, re-usable and well-structured.
         self.userPrompt = prompt
         # Generate the promptAction based on the user's request
         self.promptAction = self.generate_prompt_action()
-        print(f"\n\nGenerating response for prompt: {self.promptAction}\n\n")
+        print(f"\n\nGenerating response for prompt\n\n")
 
         self.messages.append({"role": "system", "content": self.promptAction})
         self.messages.append({"role": "user", "content": prompt})
 
         self.responsePromptAction = self.ask_gpt(self.messages)
 
-        print(f"Response from GPT: {self.responsePromptAction}")
+        print(f"Response from GPT Analyzer: {self.responsePromptAction}")
         self.messages.append({"role": "assistant", "content": self.responsePromptAction})
         
         # This is where we send the response we get from the analyser prompt to the coding prompt.
         try:
             action_data = json.loads(self.responsePromptAction)
             self.promptCode = self.generate_prompt_code(action_data)
-            print(f"Generated prompt for code: {self.promptCode}")
+            print(f"\n\nGenerating prompt for code generation:\n\n")
             self.messages.append({"role": "system", "content": self.promptCode})
 
             # Ask gpt to generate the code based on the promptCode

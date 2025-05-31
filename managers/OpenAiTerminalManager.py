@@ -114,7 +114,6 @@ class OPENAITerminalManager:
 
     def _open_new_terminal(self):
         """Opens a new terminal window based on OS"""
-        print("Opening new terminal session... from _open_new_terminal")
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self.script_path = os.path.join(tempfile.gettempdir(), f"agent_terminal_{timestamp}")
         
@@ -250,7 +249,6 @@ done
 
     def _start_monitor(self):
         """Start monitoring the terminal output"""
-        print("Starting output monitor thread...")
         output_file = f"{self.script_path}.output"
         
         def monitor():
@@ -279,7 +277,7 @@ done
         self.monitor_thread.start()
 
     def run_commands(self, commands):
-        print("Running commands:", commands)
+        print("Commands to run:", commands)
         if isinstance(commands, str):
             commands = [cmd.strip() for cmd in commands.split(",")]
         elif isinstance(commands, list):
@@ -291,7 +289,7 @@ done
         if not self._is_terminal_alive():
             self._open_new_terminal()
             time.sleep(1)  # Give terminal time to initialize
-
+        success_messages = []
         for cmd in commands:
             print(f"Running command: {cmd}")
             self.command_completed.clear()
@@ -306,6 +304,7 @@ done
                     self._send_to_llm(f"Command failed: {cmd}\nOutput:\n{self.output_buffer}")
                 else:
                     self._log_to_history({cmd: "Success"})
+                    success_messages.append({cmd: self.output_buffer.strip()})
                     # If it's a cd command, verify the directory change
                     if cmd.startswith('cd '):
                         time.sleep(0.5)  # Give filesystem time to update
@@ -315,6 +314,7 @@ done
             else:
                 self._log_to_history({cmd: "Timeout"})
                 self._send_to_llm(f"Command timeout: {cmd}")
+        self.llm.messages.append({"role": "assistant", "content": f"Commands executed: {success_messages}"})
 
 
     def write_to_file(self, filename, content):
