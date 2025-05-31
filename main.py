@@ -16,6 +16,7 @@ def main(working_dir: str):
 
         print("Initializing Agent and Terminal Manager...")
 
+
         # Link them together
         client.set_terminal_manager(terminal_manager)
         terminal_manager.set_llm(client)

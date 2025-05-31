@@ -295,6 +295,7 @@ done
             self.command_completed.clear()
             self.output_buffer = ""
             
+            
             # Execute command and wait for completion
             self._write_to_terminal(f'echo ">>> Running: {cmd}"; {cmd}')
             

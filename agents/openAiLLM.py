@@ -32,6 +32,7 @@ class OpenAIClient:
         # This function is used to set the terminal manager for the client.
         self.terminal_manager = terminal_manager
         
+        
     def process_user_prompt(self, user_prompt):
         """
         Processes the user's prompt, determines the intended action, and executes it.

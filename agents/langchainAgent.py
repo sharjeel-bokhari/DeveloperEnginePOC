@@ -12,6 +12,7 @@ from langchain.tools import tool
 
 load_dotenv()
 
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 llm = ChatOpenAI(model_name="gpt-4o", temperature=0)
 

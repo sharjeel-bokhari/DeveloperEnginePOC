@@ -12,6 +12,8 @@ class TerminalManager:
         self.terminal_process = None
         self.command_history = []
 
+        
+
     def run_llm_commands_in_new_terminal(self, commands):
         print("Entering Run LLM Commands in New Terminal")
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
